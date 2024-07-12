@@ -38,7 +38,7 @@ export default function ClientArticle({ slug }: { slug: string }) {
   if (!data) return null;
 
   return (
-    <article>
+    <article className="max-w-none">
       <h1>
         {data.metadata.name
           .replace(/^\d{4}-\d{2}-\d{2}_/, "")
