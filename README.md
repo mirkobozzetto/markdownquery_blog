@@ -1,4 +1,4 @@
-# Mon Blog GitHub-Powered
+# GitHub-Powered Blog
 
 ## 📖 À propos
 

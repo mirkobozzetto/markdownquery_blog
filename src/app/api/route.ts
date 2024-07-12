@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: "Erreur lors de la récupération des fichiers." },
       { status: 500 }
+      //500 Internal Server Error
     );
   }
 }
