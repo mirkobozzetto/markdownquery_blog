@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { MDXRemote } from "next-mdx-remote";
+import { serialize } from "next-mdx-remote/serialize";
 import { z } from "zod";
 
 const ArticleSchema = z.object({
@@ -18,18 +20,20 @@ const fetchArticle = async (slug: string) => {
     throw new Error("Failed to fetch article");
   }
   const data = await response.json();
-  return ArticleSchema.parse(data);
+  const parsed = ArticleSchema.parse(data);
+  const mdxSource = await serialize(parsed.content);
+  return { ...parsed, mdxSource };
 };
 
 export default function ClientArticle({ slug }: { slug: string }) {
-  // useQuery permet de récupérer les données de l'article depuis l'API
   const { data, isLoading, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: () => fetchArticle(slug),
   });
 
   if (isLoading) return <div>Chargement...</div>;
-  if (error) return <div>Une erreur est survenue: {error.message}</div>;
+  if (error)
+    return <div>Une erreur est survenue: {(error as Error).message}</div>;
 
   if (!data) return null;
 
@@ -38,9 +42,9 @@ export default function ClientArticle({ slug }: { slug: string }) {
       <h1>
         {data.metadata.name
           .replace(/^\d{4}-\d{2}-\d{2}_/, "")
-          .replace(".md", "")}
+          .replace(/\.(md|mdx)$/, "")}
       </h1>
-      <pre>{data.content}</pre>
+      <MDXRemote {...data.mdxSource} />
     </article>
   );
 }

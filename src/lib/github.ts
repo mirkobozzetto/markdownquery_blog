@@ -9,7 +9,7 @@ const REPO_OWNER = "mirkobozzetto";
 const REPO_NAME = "Obsidian";
 const REPO_PATH = "Blog";
 
-const FileNameSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}_.*\.md$/);
+const FileNameSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}_.*\.(md|mdx)$/);
 
 interface BlogFile {
   name: string;
@@ -45,12 +45,16 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
               return files
                 .filter((item) => item.type === "file")
                 .map((item) => {
-                  const match = item.name.match(/^\d{4}-\d{2}-\d{2}_(.+)\.md$/);
+                  const match = item.name.match(
+                    /^\d{4}-\d{2}-\d{2}_(.+)\.(md|mdx)$/
+                  );
                   // le match permet de extraire le slug du fichier
                   return {
                     name: item.name,
                     path: `${folder.name}/${item.name}`,
-                    slug: match ? match[1] : item.name.replace(".md", ""),
+                    slug: match
+                      ? match[1]
+                      : item.name.replace(/\.(md|mdx)$/, ""),
                     // le slug est le nom du fichier sans l'extension
                   };
                 })
