@@ -22,6 +22,7 @@ const fetchArticle = async (slug: string) => {
 };
 
 export default function ClientArticle({ slug }: { slug: string }) {
+  // useQuery permet de récupérer les données de l'article depuis l'API
   const { data, isLoading, error } = useQuery({
     queryKey: ["article", slug],
     queryFn: () => fetchArticle(slug),
