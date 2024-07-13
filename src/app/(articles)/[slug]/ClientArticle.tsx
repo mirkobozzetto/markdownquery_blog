@@ -32,7 +32,7 @@ export default function ClientArticle({ slug }: { slug: string }) {
     queryFn: () => fetchArticle(slug),
   });
 
-  if (isLoading) return <div>Chargement...</div>;
+  // if (isLoading) return <div>Chargement...</div>;
   if (error)
     return <div>Une erreur est survenue: {(error as Error).message}</div>;
 

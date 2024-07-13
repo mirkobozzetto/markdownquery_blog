@@ -1,7 +1,17 @@
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { dracula } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { z } from "zod";
 
 const MDXComponentsSchema = z.object({
   // Par exemple : textColor: z.enum(['light', 'dark']).optional(),
+  img: z.object({
+    src: z.string(),
+    alt: z.string(),
+  }),
+  a: z.object({
+    href: z.string(),
+    children: z.string(),
+  }),
 });
 
 type MDXComponentsProps = z.infer<typeof MDXComponentsSchema>;
@@ -39,11 +49,22 @@ const MDXComponents = ({}: MDXComponentsProps) => {
         {children}
       </blockquote>
     ),
-    code: ({ children }: { children: React.ReactNode }) => (
-      <code className="bg-gray-100 px-1 rounded">{children}</code>
-    ),
+    code: ({
+      children,
+      className,
+    }: {
+      children: React.ReactNode;
+      className?: string;
+    }) => {
+      const language = className ? className.replace(/language-/, "") : "";
+      return (
+        <SyntaxHighlighter language={language} style={dracula}>
+          {children as string}
+        </SyntaxHighlighter>
+      );
+    },
     pre: ({ children }: { children: React.ReactNode }) => (
-      <pre className="bg-gray-100 my-4 p-4 rounded overflow-x-auto">
+      <pre className="bg-gray-100/10 my-4 p-4 rounded overflow-x-auto">
         {children}
       </pre>
     ),

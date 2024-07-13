@@ -1,9 +1,13 @@
 import { Providers } from "@/components/Providers";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const dm_mono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["500"],
+  style: ["italic"],
+});
 
 export const metadata: Metadata = {
   title: "GitHub-Powered Blog",
@@ -18,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={dm_mono.className}>
         <Providers>{children}</Providers>
       </body>
     </html>
