@@ -17,9 +17,39 @@ interface BlogFile {
   slug: string;
 }
 
+let lastEtag: string | null = null;
+
+export async function checkForUpdates(): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REPO_PATH}`,
+      {
+        headers: {
+          Authorization: `token ${process.env.GITHUB_TOKEN}`,
+          "If-None-Match": lastEtag || "",
+        },
+      }
+    );
+
+    if (response.status === 304) {
+      return false; // Pas de changement
+    }
+
+    const newEtag = response.headers.get("ETag");
+    if (newEtag && newEtag !== lastEtag) {
+      lastEtag = newEtag;
+      return true; // Il y a eu des changements
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Erreur lors de la vérification des mises à jour:", error);
+    return false;
+  }
+}
+
 export async function getBlogFiles(): Promise<BlogFile[]> {
   try {
-    // la liste des dossiers année-mois
     const { data: folders } = await octokit.repos.getContent({
       owner: REPO_OWNER,
       repo: REPO_NAME,

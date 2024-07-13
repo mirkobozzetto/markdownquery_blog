@@ -13,4 +13,4 @@ export default function ArticlePage({ params }: { params: { slug: string } }) {
   return <ClientArticle slug={params.slug} />;
 }
 
-export const revalidate = 86400;
+export const revalidate = 8640;
