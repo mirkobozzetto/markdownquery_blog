@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  @apply bg-slate-800/90;
+  @apply text-gray-300;
+  @apply p-12;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

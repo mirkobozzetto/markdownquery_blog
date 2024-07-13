@@ -1,9 +1,12 @@
 import { Octokit } from "@octokit/rest";
+import NodeCache from "node-cache";
 import { z } from "zod";
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
+
+const cache = new NodeCache({ stdTTL: 365 * 24 * 60 * 60 }); // Cache pour 1 an
 
 const REPO_OWNER = "mirkobozzetto";
 const REPO_NAME = "Obsidian";
@@ -31,14 +34,13 @@ export async function checkForUpdates(): Promise<boolean> {
       }
     );
 
-    if (response.status === 304) {
-      return false; // Pas de changement
-    }
+    if (response.status === 304) return false; // Pas de changement
 
     const newEtag = response.headers.get("ETag");
     if (newEtag && newEtag !== lastEtag) {
       lastEtag = newEtag;
-      return true; // Il y a eu des changements
+      invalidateBlogFilesCache(); // Invalider le cache si des changements sont détectés
+      return true;
     }
 
     return false;
@@ -49,6 +51,11 @@ export async function checkForUpdates(): Promise<boolean> {
 }
 
 export async function getBlogFiles(): Promise<BlogFile[]> {
+  const cacheKey = "blogFiles";
+  const cachedFiles = cache.get<BlogFile[]>(cacheKey);
+
+  if (cachedFiles) return cachedFiles;
+
   try {
     const { data: folders } = await octokit.repos.getContent({
       owner: REPO_OWNER,
@@ -56,53 +63,39 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
       path: REPO_PATH,
     });
 
-    console.log("Dossiers trouvés:", folders);
+    if (!Array.isArray(folders)) return [];
 
-    if (Array.isArray(folders)) {
-      const allFiles = await Promise.all(
-        folders
-          .filter((item) => item.type === "dir")
-          .map(async (folder) => {
-            const { data: files } = await octokit.repos.getContent({
-              owner: REPO_OWNER,
-              repo: REPO_NAME,
-              path: `${REPO_PATH}/${folder.name}`,
-            });
+    const allFiles = await Promise.all(
+      folders
+        .filter((item) => item.type === "dir")
+        .map(async (folder) => {
+          const { data: files } = await octokit.repos.getContent({
+            owner: REPO_OWNER,
+            repo: REPO_NAME,
+            path: `${REPO_PATH}/${folder.name}`,
+          });
 
-            console.log(`Fichiers dans ${folder.name}:`, files);
+          if (!Array.isArray(files)) return [];
 
-            if (Array.isArray(files)) {
-              return files
-                .filter((item) => item.type === "file")
-                .map((item) => {
-                  const match = item.name.match(
-                    /^\d{4}-\d{2}-\d{2}_(.+)\.(md|mdx)$/
-                  );
-                  // le match permet de extraire le slug du fichier
-                  return {
-                    name: item.name,
-                    path: `${folder.name}/${item.name}`,
-                    slug: match
-                      ? match[1]
-                      : item.name.replace(/\.(md|mdx)$/, ""),
-                    // le slug est le nom du fichier sans l'extension
-                  };
-                })
-                .filter((file) => FileNameSchema.safeParse(file.name).success);
-              // le filter permet de ne garder que les fichiers valides
-            }
+          return files
+            .filter((item) => item.type === "file")
+            .map((item) => {
+              const match = item.name.match(
+                /^\d{4}-\d{2}-\d{2}_(.+)\.(md|mdx)$/
+              );
+              return {
+                name: item.name,
+                path: `${folder.name}/${item.name}`,
+                slug: match ? match[1] : item.name.replace(/\.(md|mdx)$/, ""),
+              };
+            })
+            .filter((file) => FileNameSchema.safeParse(file.name).success);
+        })
+    );
 
-            return [];
-          })
-      );
-
-      const flattenedFiles = allFiles.flat();
-      console.log("Tous les fichiers markdown trouvés:", flattenedFiles);
-
-      return flattenedFiles;
-    }
-
-    return [];
+    const flattenedFiles = allFiles.flat();
+    cache.set(cacheKey, flattenedFiles);
+    return flattenedFiles;
   } catch (error) {
     console.error("Erreur lors de la récupération des fichiers:", error);
     return [];
@@ -110,6 +103,11 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
 }
 
 export async function getBlogFileContent(path: string): Promise<string> {
+  const cacheKey = `fileContent:${path}`;
+  const cachedContent = cache.get<string>(cacheKey);
+
+  if (cachedContent) return cachedContent;
+
   try {
     const { data } = await octokit.repos.getContent({
       owner: REPO_OWNER,
@@ -118,8 +116,9 @@ export async function getBlogFileContent(path: string): Promise<string> {
     });
 
     if ("content" in data) {
-      // Le contenu est encodé en base64, nous devons le décoder
-      return Buffer.from(data.content, "base64").toString("utf-8");
+      const content = Buffer.from(data.content, "base64").toString("utf-8");
+      cache.set(cacheKey, content);
+      return content;
     } else {
       throw new Error("Contenu invalide");
     }
@@ -130,4 +129,12 @@ export async function getBlogFileContent(path: string): Promise<string> {
     );
     throw error;
   }
+}
+
+export function invalidateBlogFilesCache() {
+  cache.del("blogFiles");
+}
+
+export function invalidateFileContentCache(path: string) {
+  cache.del(`fileContent:${path}`);
 }
