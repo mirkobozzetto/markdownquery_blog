@@ -1,5 +1,6 @@
 "use client";
 
+import CustomMDXComponents from "@/components/MDXComponents";
 import { useQuery } from "@tanstack/react-query";
 import { MDXRemote } from "next-mdx-remote";
 import { serialize } from "next-mdx-remote/serialize";
@@ -36,15 +37,18 @@ export default function ClientArticle({ slug }: { slug: string }) {
     return <div>Une erreur est survenue: {(error as Error).message}</div>;
 
   if (!data) return null;
-
   return (
-    <article className="max-w-none">
-      <h1>
+    <article className="prose lg:prose-xl mx-auto">
+      <h1 className="mb-4 font-bold text-5xl">
         {data.metadata.name
           .replace(/^\d{4}-\d{2}-\d{2}_/, "")
           .replace(/\.(md|mdx)$/, "")}
       </h1>
-      <MDXRemote {...data.mdxSource} />
+      <MDXRemote
+        {...data.mdxSource}
+        // @ts-ignore
+        components={CustomMDXComponents}
+      />
     </article>
   );
 }
