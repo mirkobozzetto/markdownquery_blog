@@ -2,8 +2,7 @@
 
 import CustomMDXComponents from "@/components/MDXComponents";
 import { useQuery } from "@tanstack/react-query";
-import { MDXRemote } from "next-mdx-remote";
-import { serialize } from "next-mdx-remote/serialize";
+import dynamic from "next/dynamic";
 import { z } from "zod";
 
 const ArticleSchema = z.object({
@@ -15,6 +14,17 @@ const ArticleSchema = z.object({
   }),
 });
 
+const MDXRemote = dynamic(
+  () => import("next-mdx-remote").then((mod) => mod.MDXRemote),
+  {
+    ssr: false,
+  }
+);
+
+const serializePromise = import("next-mdx-remote/serialize").then(
+  (mod) => mod.serialize
+);
+
 const fetchArticle = async (slug: string) => {
   const response = await fetch(`/api/article?slug=${encodeURIComponent(slug)}`);
   if (!response.ok) {
@@ -22,6 +32,7 @@ const fetchArticle = async (slug: string) => {
   }
   const data = await response.json();
   const parsed = ArticleSchema.parse(data);
+  const serialize = await serializePromise;
   const mdxSource = await serialize(parsed.content);
   return { ...parsed, mdxSource };
 };
@@ -32,7 +43,7 @@ export default function ClientArticle({ slug }: { slug: string }) {
     queryFn: () => fetchArticle(slug),
   });
 
-  // if (isLoading) return <div>Chargement...</div>;
+  if (isLoading) return <div>Chargement...</div>;
   if (error)
     return <div>Une erreur est survenue: {(error as Error).message}</div>;
 

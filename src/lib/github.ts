@@ -41,18 +41,27 @@ export async function checkForUpdates(): Promise<boolean> {
       {
         headers: {
           Authorization: `token ${process.env.GITHUB_TOKEN}`,
-          "If-None-Match": lastEtag || "",
+          "If-None-Match": lastEtag || "", // Si l'Etag est déjà connu, on utilise cet Etag pour éviter de télécharger les mêmes fichiers
         },
       }
     );
 
-    if (response.status === 304) return false; // Pas de changement
+    if (response.status === 304) return false; // Pas de changement, on retourne false
 
     const newEtag = response.headers.get("ETag");
+
     if (newEtag && newEtag !== lastEtag) {
       lastEtag = newEtag;
-      invalidateBlogFilesCache(); // Invalider le cache si des changements sont détectés
-      return true;
+
+      // Au lieu d'invalider tout le cache, mettons à jour seulement les nouveaux fichiers
+      const currentFiles = cache.get<BlogFile[]>("blogFiles") || []; // Récupérons les fichiers actuels
+      const updatedFiles = await getBlogFiles(true); // Passons un paramètre pour forcer la mise à jour
+
+      if (updatedFiles.length > currentFiles.length) {
+        // Si il y a des nouveaux fichiers, on met à jour le cache
+        cache.set("blogFiles", updatedFiles);
+        return true;
+      }
     }
 
     return false;
@@ -66,11 +75,13 @@ export async function checkForUpdates(): Promise<boolean> {
  * Fonction pour récupérer la liste des fichiers Markdown ou MarkdownX du dépôt GitHub
  */
 
-export async function getBlogFiles(): Promise<BlogFile[]> {
+export async function getBlogFiles(
+  forceUpdate: boolean = false
+): Promise<BlogFile[]> {
   const cacheKey = "blogFiles";
   const cachedFiles = cache.get<BlogFile[]>(cacheKey);
 
-  if (cachedFiles) return cachedFiles;
+  if (cachedFiles && !forceUpdate) return cachedFiles;
 
   try {
     const { data: folders } = await octokit.repos.getContent({
@@ -97,7 +108,7 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
             path: `${REPO_PATH}/${folder.name}`,
           });
 
-          if (!Array.isArray(files)) return [];
+          if (!Array.isArray(files)) return []; // Si le dossier est vide, on ne le traite pas
 
           return files
             .filter((item) => item.type === "file")
@@ -107,17 +118,35 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
               );
               return {
                 name: item.name,
-                path: `${folder.name}/${item.name}`,
-                slug: match ? match[1] : item.name.replace(/\.(md|mdx)$/, ""),
+                path: `${folder.name}/${item.name}`, // Le chemin complet du fichier
+                slug: match ? match[1] : item.name.replace(/\.(md|mdx)$/, ""), // Le nom du fichier sans le suffixe
               };
             })
             .filter((file) => FileNameSchema.safeParse(file.name).success);
         })
     );
 
-    const flattenedFiles = allFiles.flat();
-    cache.set(cacheKey, flattenedFiles);
-    return flattenedFiles;
+    const flattenedFiles = allFiles.flat(); // Fusionner tous les fichiers dans un tableau
+
+    if (forceUpdate) {
+      // Si c'est une mise à jour forcée, fusionnons avec les fichiers existants
+      const existingFiles = cache.get<BlogFile[]>(cacheKey) || [];
+      const updatedFiles = [
+        ...existingFiles, // Copier les fichiers existants
+        ...flattenedFiles.filter(
+          // Ajouter les fichiers nouveaux
+          (newFile) =>
+            !existingFiles.some(
+              (existingFile) => existingFile.path === newFile.path
+            )
+        ),
+      ];
+      cache.set(cacheKey, updatedFiles);
+      return updatedFiles;
+    } else {
+      cache.set(cacheKey, flattenedFiles);
+      return flattenedFiles;
+    }
   } catch (error) {
     console.error("Erreur lors de la récupération des fichiers:", error);
     return [];
