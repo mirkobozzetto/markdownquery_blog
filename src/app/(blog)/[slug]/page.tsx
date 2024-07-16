@@ -13,4 +13,4 @@ export default function ArticlePage({ params }: { params: { slug: string } }) {
   return <ClientArticle slug={params.slug} />;
 }
 
-export const revalidate = 8640;
+export const revalidate = 60; // le temps de récupération pour que le contenu soit mis à jour
