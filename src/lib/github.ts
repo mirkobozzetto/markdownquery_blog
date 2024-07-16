@@ -14,13 +14,25 @@ const REPO_PATH = "Blog";
 
 const FileNameSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}_.*\.(md|mdx)$/);
 
-interface BlogFile {
+export interface BlogFile {
   name: string;
   path: string;
   slug: string;
 }
 
+/**
+ * Variable globale pour stocker le dernier Etag renvoyé par la requête GitHub
+ * un Etag est un identifiant unique pour une ressource, il est utilisé pour éviter de télécharger les mêmes fichiers
+ * si le contenu n'a pas changé
+ * https://medium.com/airasia-com-tech-blog/etag-101-tips-and-tricks-for-implementation-6072525b487b
+ */
+
 let lastEtag: string | null = null;
+
+/**
+ * Fonction pour vérifier si des mises à jour sont disponibles dans le dépôt GitHub
+ * Si des mises à jour sont disponibles, la fonction récupère les fichiers mis à jour et les met à jour dans le cache
+ */
 
 export async function checkForUpdates(): Promise<boolean> {
   try {
@@ -50,6 +62,10 @@ export async function checkForUpdates(): Promise<boolean> {
   }
 }
 
+/**
+ * Fonction pour récupérer la liste des fichiers Markdown ou MarkdownX du dépôt GitHub
+ */
+
 export async function getBlogFiles(): Promise<BlogFile[]> {
   const cacheKey = "blogFiles";
   const cachedFiles = cache.get<BlogFile[]>(cacheKey);
@@ -64,6 +80,12 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
     });
 
     if (!Array.isArray(folders)) return [];
+
+    /**
+     * Pour chaque dossier, on récupère la liste des fichiers dans le dossier
+     * puis on filtre les fichiers pour ne conserver que ceux qui sont des fichiers Markdown ou MarkdownX
+     * et on les convertit en objets BlogFile
+     */
 
     const allFiles = await Promise.all(
       folders
@@ -102,6 +124,11 @@ export async function getBlogFiles(): Promise<BlogFile[]> {
   }
 }
 
+/**
+ * Fonction pour récupérer le contenu d'un fichier Markdown ou MarkdownX
+ * Si le contenu est déjà dans le cache, on l'utilise, sinon on le récupère du dépôt GitHub
+ */
+
 export async function getBlogFileContent(path: string): Promise<string> {
   const cacheKey = `fileContent:${path}`;
   const cachedContent = cache.get<string>(cacheKey);
@@ -134,6 +161,11 @@ export async function getBlogFileContent(path: string): Promise<string> {
 export function invalidateBlogFilesCache() {
   cache.del("blogFiles");
 }
+
+/**
+ * Fonction pour invalider le cache du contenu d'un fichier Markdown ou MarkdownX
+ * cela est utile lorsque le contenu d'un fichier est modifié et que nous souhaitons récupérer le nouveau contenu
+ */
 
 export function invalidateFileContentCache(path: string) {
   cache.del(`fileContent:${path}`);
