@@ -1,9 +1,16 @@
-import { ArticlePrefetcher } from "@/components/ArticlePrefetcher";
 import { getBlogFiles } from "@/lib/github";
 import dynamic from "next/dynamic";
 
 const BlogUpdater = dynamic(
   () => import("@/components/BlogUpdater").then((mod) => mod.BlogUpdater),
+  { ssr: false }
+);
+
+const ArticlePrefetcher = dynamic(
+  () =>
+    import("@/components/ArticlePrefetcher").then(
+      (mod) => mod.ArticlePrefetcher
+    ),
   { ssr: false }
 );
 
@@ -22,7 +29,7 @@ export default async function Home() {
       <BlogUpdater />
       <ArticlePrefetcher files={files} />
       <main>
-        <h1 className="font-bold text-5xl">Github-Powered Blog</h1>
+        <h1 className="mb-8 font-bold text-5xl">Github-Powered Blog</h1>
         <DynamicArticleList files={files} />
       </main>
     </>
