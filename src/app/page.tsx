@@ -1,3 +1,4 @@
+import { ArticlePrefetcher } from "@/components/ArticlePrefetcher";
 import { getBlogFiles } from "@/lib/github";
 import dynamic from "next/dynamic";
 
@@ -19,8 +20,9 @@ export default async function Home() {
   return (
     <>
       <BlogUpdater />
+      <ArticlePrefetcher files={files} />
       <main>
-        <h1>Mon Blog</h1>
+        <h1 className="font-bold text-5xl">Github-Powered Blog</h1>
         <DynamicArticleList files={files} />
       </main>
     </>
